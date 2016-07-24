@@ -16,3 +16,5 @@ var NameField = React.createClass({
         );
     }
 });
+
+module.exports = NameField;
