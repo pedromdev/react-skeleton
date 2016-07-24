@@ -7,6 +7,9 @@ var NameField = React.createClass({
     onChange: function(e) {
         this.setState({value: e.target.value});
     },
+    clear: function() {
+        this.setState({value: ""});
+    },
     render: function() {
         return (
             <input className="form-control"
