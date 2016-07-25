@@ -1,0 +1,19 @@
+body {
+    background-color: #dfdfdf;
+}
+
+#calculator {
+    width: 300px;
+    margin-top: 50px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#calculator .row {
+    margin-bottom: 15px;
+}
+
+
+#calculator .row:last-child {
+    margin-bottom: 0;
+}
