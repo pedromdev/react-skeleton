@@ -1,6 +1,11 @@
 var React = require('react');
 
 var InputPanel = React.createClass({
+    getDefaultProps: function() {
+        return {
+            onAppend: function (e) {}
+        };
+    },
     getInitialState: function() {
         return {value: "", insertDot: false};
     },
@@ -12,6 +17,7 @@ var InputPanel = React.createClass({
         } else if (e.keyCode == 46 || e.keyCode == 8) {
             this.delete();
         } else {
+            this.props.onAppend(e);
             this.append(ch);
         }
 
@@ -46,10 +52,15 @@ var InputPanel = React.createClass({
     clear: function() {
         this.setState({value: "", insertDot: false});
     },
+    setValue: function(value) {
+        this.setState({"value": value, insertDot: false});
+    },
+    getValue: function() {
+        return this.state.value;
+    },
     render: function() {
         return (
             <input className="form-control"
-                dir="rtl"
                 readOnly="true"
                 onKeyDown={this.onKeyDown}
                 value={this.state.value} />

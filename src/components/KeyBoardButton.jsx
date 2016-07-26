@@ -2,7 +2,7 @@ var React = require('react');
 
 var KeyBoardButton = React.createClass({
     onClick: function(e) {
-        this.props.onButtonClick(this.props.value);
+        this.props.onButtonClick(this.props.value, e);
     },
     render: function() {
         return (

@@ -20424,18 +20424,60 @@ module.exports = require('./lib/React');
 var React = require('react');
 var InputPanel = require('./InputPanel.jsx');
 var KeyBoard = require('./KeyBoard.jsx');
+var OperatorManager = require('./OperatorManager.jsx');
 
 var Calculator = React.createClass({
     displayName: 'Calculator',
 
+    getInitialState: function () {
+        return { lastValue: 0, deleteDisplayedResult: false };
+    },
     handleDigit: function (value) {
-        this.refs.input.append(value);
+        if (this.state.deleteDisplayedResult) {
+            this.refs.input.setValue(value);
+            this.setState({ lastValue: 0, deleteDisplayedResult: false });
+        } else {
+            this.refs.input.append(value);
+        }
     },
     handleClear: function () {
         this.refs.input.clear();
+        this.setState({ lastValue: 0, deleteDisplayedResult: false });
     },
     handleClickDot: function (value) {
         this.refs.input.insertDot();
+    },
+    onAppend: function (e) {
+        if (this.state.deleteDisplayedResult) {
+            this.handleClear();
+        }
+    },
+    getResult: function (callback) {
+        var inputValue = this.refs.input.getValue();
+        var result;
+
+        if (inputValue.length == 0) {
+            return null;
+        }
+        return callback(this.state.lastValue, new Number(inputValue));
+    },
+    onExecute: function (callback) {
+        var result = this.getResult(callback);
+
+        if (result == null) {
+            return;
+        }
+        this.refs.input.clear();
+        this.setState({ lastValue: result });
+    },
+    onResult: function (callback) {
+        var result = this.getResult(callback);
+
+        if (result == null) {
+            return;
+        }
+        this.refs.input.setValue(result);
+        this.setState({ lastValue: 0, deleteDisplayedResult: true });
     },
     render: function () {
         return React.createElement(
@@ -20458,7 +20500,7 @@ var Calculator = React.createClass({
                         React.createElement(
                             'div',
                             { className: 'col-xs-12' },
-                            React.createElement(InputPanel, { ref: 'input' })
+                            React.createElement(InputPanel, { ref: 'input', onAppend: this.onAppend })
                         )
                     ),
                     React.createElement(
@@ -20474,11 +20516,8 @@ var Calculator = React.createClass({
                         React.createElement(
                             'div',
                             { className: 'col-xs-3' },
-                            React.createElement(
-                                'div',
-                                { className: 'row' },
-                                React.createElement('div', { className: 'col-xs-12' })
-                            )
+                            React.createElement(OperatorManager, { onExecute: this.onExecute,
+                                onResult: this.onResult })
                         )
                     )
                 )
@@ -20489,12 +20528,17 @@ var Calculator = React.createClass({
 
 module.exports = Calculator;
 
-},{"./InputPanel.jsx":173,"./KeyBoard.jsx":174,"react":171}],173:[function(require,module,exports){
+},{"./InputPanel.jsx":173,"./KeyBoard.jsx":174,"./OperatorManager.jsx":177,"react":171}],173:[function(require,module,exports){
 var React = require('react');
 
 var InputPanel = React.createClass({
     displayName: "InputPanel",
 
+    getDefaultProps: function () {
+        return {
+            onAppend: function (e) {}
+        };
+    },
     getInitialState: function () {
         return { value: "", insertDot: false };
     },
@@ -20506,6 +20550,7 @@ var InputPanel = React.createClass({
         } else if (e.keyCode == 46 || e.keyCode == 8) {
             this.delete();
         } else {
+            this.props.onAppend(e);
             this.append(ch);
         }
 
@@ -20540,9 +20585,14 @@ var InputPanel = React.createClass({
     clear: function () {
         this.setState({ value: "", insertDot: false });
     },
+    setValue: function (value) {
+        this.setState({ "value": value, insertDot: false });
+    },
+    getValue: function () {
+        return this.state.value;
+    },
     render: function () {
         return React.createElement("input", { className: "form-control",
-            dir: "rtl",
             readOnly: "true",
             onKeyDown: this.onKeyDown,
             value: this.state.value });
@@ -20612,7 +20662,7 @@ var KeyBoardButton = React.createClass({
     displayName: "KeyBoardButton",
 
     onClick: function (e) {
-        this.props.onButtonClick(this.props.value);
+        this.props.onButtonClick(this.props.value, e);
     },
     render: function () {
         return React.createElement(
@@ -20631,9 +20681,111 @@ module.exports = KeyBoardButton;
 
 },{"react":171}],176:[function(require,module,exports){
 var React = require('react');
+
+var Operator = React.createClass({
+    displayName: "Operator",
+
+    onClick: function (e) {
+        this.props.onClick(this.props.text, e);
+    },
+    render: function () {
+        var type = this.props.type ? this.props.type : "primary";
+        return React.createElement(
+            "div",
+            { className: "col-xs-12" },
+            React.createElement(
+                "button",
+                { className: "btn btn-" + type + " btn-block", onClick: this.onClick },
+                this.props.text
+            )
+        );
+    }
+});
+
+module.exports = Operator;
+
+},{"react":171}],177:[function(require,module,exports){
+var React = require('react');
+var Operator = require('./Operator.jsx');
+
+var OperatorManager = React.createClass({
+    displayName: 'OperatorManager',
+
+    getInitialState: function () {
+        return { lastOperation: "" };
+    },
+    getOperation: function (operation) {
+        var callbacks = {
+            "+": function (a, b) {
+                return a + b;
+            },
+            "-": function (a, b) {
+                return a - b;
+            },
+            "x": function (a, b) {
+                return a * b;
+            },
+            "/": function (a, b) {
+                return a / b;
+            }
+        };
+        return callbacks[operation] ? callbacks[operation] : function (a, b) {
+            return b;
+        };
+    },
+    executeLastOperation: function () {
+        if (this.state.lastOperation.length > 0) {
+            this.props.onExecute(this.getOperation(this.state.lastOperation));
+        }
+    },
+    onExecute: function (text, e) {
+        this.props.onExecute(this.getOperation(this.state.lastOperation));
+        this.setState({ lastOperation: text });
+    },
+    onResult: function () {
+        this.props.onResult(this.getOperation(this.state.lastOperation));
+        this.setState({ lastOperation: "" });
+    },
+    render: function () {
+        return React.createElement(
+            'div',
+            null,
+            React.createElement(
+                'div',
+                { className: 'row' },
+                React.createElement(Operator, { onClick: this.onExecute, text: '+' })
+            ),
+            React.createElement(
+                'div',
+                { className: 'row' },
+                React.createElement(Operator, { onClick: this.onExecute, text: '-' })
+            ),
+            React.createElement(
+                'div',
+                { className: 'row' },
+                React.createElement(Operator, { onClick: this.onExecute, text: 'x' })
+            ),
+            React.createElement(
+                'div',
+                { className: 'row' },
+                React.createElement(Operator, { onClick: this.onExecute, text: '/' })
+            ),
+            React.createElement(
+                'div',
+                { className: 'row' },
+                React.createElement(Operator, { onClick: this.onResult, text: '=', type: 'success' })
+            )
+        );
+    }
+});
+
+module.exports = OperatorManager;
+
+},{"./Operator.jsx":176,"react":171}],178:[function(require,module,exports){
+var React = require('react');
 var ReactDOM = require('react-dom');
 var Calculator = require('./components/Calculator.jsx');
 
 ReactDOM.render(React.createElement(Calculator, null), document.getElementById('calculator'));
 
-},{"./components/Calculator.jsx":172,"react":171,"react-dom":29}]},{},[176]);
+},{"./components/Calculator.jsx":172,"react":171,"react-dom":29}]},{},[178]);
